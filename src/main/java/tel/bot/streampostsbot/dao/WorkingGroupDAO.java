@@ -5,4 +5,5 @@ import tel.bot.streampostsbot.entity.WorkingGroup;
 
 public interface WorkingGroupDAO extends JpaRepository<WorkingGroup, Long> {
     WorkingGroup findWorkingGroupById(Long id);
+
 }
