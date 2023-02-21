@@ -29,12 +29,6 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
-import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
-import org.telegram.telegrambots.meta.api.objects.media.InputMediaDocument;
-import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto;
-import org.telegram.telegrambots.meta.api.objects.media.InputMediaVideo;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import tel.bot.streampostsbot.config.BotConfig;
 import tel.bot.streampostsbot.dao.AppUserDAO;
@@ -62,7 +56,8 @@ public class TelegramBot extends TelegramLongPollingBot {
     private static final String ERROR_TEXT = "Error occurred: ";
     private static final String HASHTAG = "^#(?=.*[^0-9])[a-zа-яёіїґ0-9]{1,29}$";
     private static final String NOT_IMPLEMENTED = "Sorry, this feature is not yet implemented :(";
-    private static final int INITIAL_LIMIT = 1; //TODO якщо комусь знадобиться за раз відправти 20+ фото, бажано підвищити ліміт
+    private static final int INITIAL_LIMIT = 1;
+    private static final Map<String, Map<Channel, List<Message>>> mediaGroupMap = new HashMap<>();
     private boolean FLAG_ADD_GROUP = false;
     private boolean FLAG_ADD_CHANNEL = false;
     private boolean FLAG_ADD_HASHTAG = false;
@@ -74,7 +69,8 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final HelpRequestImpl helpRequest;
     private final InlineKeyboardService keyboardService;
     private final BotManagerService botManagerService;
-    private final Map<String, Map<Channel, List<Message>>> mediaGroupMap = new HashMap<>();
+    private final BotUtilsService botUtilsService;
+    private final BotKeyboardRowService botKeyboardRowService;
     private Long workingGroupId;
     private Long channelId;
     private Long hashtagId;
@@ -84,7 +80,9 @@ public class TelegramBot extends TelegramLongPollingBot {
             ChannelDAO channelDAO, WorkingGroupDAO workingGroupDAO,
             HashtagDAO hashtagDAO, HelpRequestImpl helpRequest,
             InlineKeyboardService inlineKeyboardService,
-            BotManagerService botManagerService
+            BotManagerService botManagerService,
+            BotUtilsService botUtilsService,
+            BotKeyboardRowService botKeyboardRowService
     ) {
         this.appUserDAO = appUserDAO;
         this.channelDAO = channelDAO;
@@ -94,6 +92,8 @@ public class TelegramBot extends TelegramLongPollingBot {
         this.config = config;
         this.keyboardService = inlineKeyboardService;
         this.botManagerService = botManagerService;
+        this.botUtilsService = botUtilsService;
+        this.botKeyboardRowService = botKeyboardRowService;
     }
 
     @Override
@@ -129,7 +129,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 Channel channel = channelDAO.findChannelById(channelId);
                 WorkingGroup workingGroup = workingGroupDAO.findWorkingGroupById(workingGroupId);
                 List<Hashtag> hashtagList = hashtagDAO.getHashtagsByWorkingGroup(workingGroup);
-                if (hashtagIsPresent(messageText, hashtagList)) {
+                if (botUtilsService.hashtagIsPresent(messageText, hashtagList)) {
                     prepareAndSendMessage(chatId, "This hashtag already exists");
                 }
                 else {
@@ -213,79 +213,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             }
         } //TODO Хуйня яка репостить пости з таргет груп
         else if (update.hasChannelPost()) {
-            Message channelPost = update.getChannelPost();
-            Channel channel = channelDAO.findChannelByChannelId(update.getChannelPost().getChatId());
-            if (Optional.ofNullable(channel).isPresent()) {
-                SendMediaGroup mediaGroup = null;
-                List<WorkingGroup> listGroup = channel.getWorkingGroups();
-                List<Hashtag> hashtagList = channel.getHashtags();
-                //TODO оцю хуйню доробить, в принципі працює так як однорукий шульга
-                if (channelPost.getMediaGroupId() != null) {
-                    String mediaGroupId = update.getChannelPost().getMediaGroupId();
-                    if (!mediaGroupMap.containsKey(mediaGroupId)) {
-                        Map<Channel, List<Message>> firstMessageMap = new HashMap<>();
-                        List<Message> firstMessage = new ArrayList<>();
-                        firstMessage.add(update.getChannelPost());
-                        firstMessageMap.put(channel, firstMessage);
-                        mediaGroupMap.put(mediaGroupId, firstMessageMap);
-                    }
-                    else {
-                        Map<Channel, List<Message>> messageMap = mediaGroupMap.get(mediaGroupId);
-                        if (messageMap.containsKey(channel)) {
-                            messageMap.get(channel).add(update.getChannelPost());
-                        } else {
-                            List<Message> messageList = new ArrayList<>();
-                            messageList.add(update.getChannelPost());
-                            messageMap.put(channel, messageList);
-                        }
-                    }
-                }
-                if (mediaGroupMap.size() > INITIAL_LIMIT) {
-                    Channel targetChanel = mediaGroupMap.values().iterator().next().keySet().iterator().next();
-                    listGroup = targetChanel.getWorkingGroups();
-                    hashtagList = targetChanel.getHashtags();
-                    String targetKey = Collections.max(mediaGroupMap.entrySet(), Map.Entry.comparingByValue(
-                            Comparator.comparingInt(m -> m.values().stream().mapToInt(List::size).sum())
-                    )).getKey();
-                    mediaGroup = sendMediaGroup(mediaGroupMap.get(targetKey).values().stream().flatMap(
-                            List::stream).collect(Collectors.toList()));
-                    mediaGroupMap.remove(targetKey);
-                }
-                for (WorkingGroup group : listGroup) {
-                    Long groupId = group.getChannelId();
-                    if (mediaGroup != null && captionMediaGroupValidator(mediaGroup.getMedias().get(0).getCaption(),group,
-                            hashtagList)) {
-                        try {
-                            mediaGroup.setChatId(groupId);
-                            execute(mediaGroup);
-                        } catch (TelegramApiException e) {
-                            log.error(ERROR_TEXT + e.getMessage());
-                        }
-                    }
-                    if (captionValidator(channelPost, group, hashtagList) &&
-                            update.getChannelPost().getMediaGroupId() == null) {
-                        //TODO Якщо ми пересилаєм пост з іншого каналу
-                        if (update.getChannelPost().getForwardFromChat() != null) {
-                            ForwardMessage forwardMessage = new ForwardMessage();
-                            forwardMessage.setChatId(groupId);
-                            forwardMessage.setFromChatId(update.getChannelPost().getChatId());
-                            forwardMessage.setMessageId(update.getChannelPost().getMessageId());
-                            executeMessage(forwardMessage);
-                        }
-                        else {
-                            CopyMessage copyMessage = new CopyMessage();
-                            copyMessage.setChatId(groupId);
-                            copyMessage.setFromChatId(update.getChannelPost().getChatId());
-                            copyMessage.setMessageId(update.getChannelPost().getMessageId());
-                            try {
-                                execute(copyMessage);
-                            } catch (TelegramApiException e) {
-                                log.error(ERROR_TEXT + e.getMessage());
-                            }
-                        }
-                    }
-                }
-            }
+            processChannelPost(update);
         }
         //TODO Хуйня яка створює групи
         else if (update.hasMessage() && update.getMessage().getForwardFromChat() != null && FLAG_ADD_GROUP) {
@@ -331,42 +259,107 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    private SendMediaGroup sendMediaGroup(List<Message> mediaGroupList) {
-        SendMediaGroup mediaGroup = new SendMediaGroup();
-        List<InputMedia> inputMedias = new ArrayList<>();
-        for (Message channelPost : mediaGroupList) {
-            String caption = channelPost.getCaption();
-            if (channelPost.getPhoto() != null) {
-                inputMedias.add(InputMediaPhoto.builder()
-                        .caption(caption)
-                        .media(channelPost.getPhoto().get(
-                                channelPost.getPhoto().size() - 1).getFileId())
-                        .build());
-                mediaGroup.setMedias(inputMedias);
+    private void processChannelPost(Update update) {
+        Message channelPost = update.getChannelPost();
+        Channel channel = channelDAO.findChannelByChannelId(channelPost.getChatId());
+        if (Optional.ofNullable(channel).isPresent()) {
+            List<WorkingGroup> listGroup = channel.getWorkingGroups();
+            List<Hashtag> hashtagList = channel.getHashtags();
+
+            if (channelPost.getMediaGroupId() != null) {
+                processMediaGroupPost(channelPost, channel);
             }
-            else if (channelPost.getVideo() != null) {
-                inputMedias.add(InputMediaVideo.builder()
-                        .caption(caption)
-                        .media(channelPost.getVideo().getFileId())
-                        .build());
-                mediaGroup.setMedias(inputMedias);
-            }
-            else if (channelPost.getDocument() != null) {
-                inputMedias.add(InputMediaDocument.builder()
-                        .caption(caption)
-                        .media(channelPost.getDocument().getFileId())
-                        .build());
-                mediaGroup.setMedias(inputMedias);
+
+            for (WorkingGroup group : listGroup) {
+                processChannelPostForGroup(update, channelPost, group, hashtagList);
             }
         }
-        return mediaGroup;
     }
 
-    private boolean hashtagIsPresent(String hashtag, List<Hashtag> hashtagList) {
-        List<String> listHashtag = hashtagList.stream()
-                .map(Hashtag::getHashtagName)
-                .toList();
-        return listHashtag.contains(hashtag);
+    private void processChannelPostForGroup(
+            Update update, Message channelPost, WorkingGroup group, List<Hashtag> hashtagList
+    ) {
+        Long groupId = group.getChannelId();
+        if (botUtilsService.captionValidator(channelPost, group, hashtagList) &&
+                update.getChannelPost().getMediaGroupId() == null) {
+            if (update.getChannelPost().getForwardFromChat() != null) {
+                //TODO Якщо ми пересилаєм пост з іншого каналу
+                ForwardMessage forwardMessage = new ForwardMessage();
+                forwardMessage.setChatId(groupId);
+                forwardMessage.setFromChatId(update.getChannelPost().getChatId());
+                forwardMessage.setMessageId(update.getChannelPost().getMessageId());
+                executeMessage(forwardMessage);
+            }
+            else {
+                CopyMessage copyMessage = new CopyMessage();
+                copyMessage.setChatId(groupId);
+                copyMessage.setFromChatId(update.getChannelPost().getChatId());
+                copyMessage.setMessageId(update.getChannelPost().getMessageId());
+                try {
+                    execute(copyMessage);
+                } catch (TelegramApiException e) {
+                    log.error(ERROR_TEXT + e.getMessage());
+                }
+            }
+        }
+    }
+
+    //TODO оцю хуйню доробить, в принципі працює так як однорукий шульга
+    private void processMediaGroupPost(Message channelPost, Channel channel) {
+        SendMediaGroup mediaGroup;
+        String mediaGroupId = channelPost.getMediaGroupId();
+        if (!TelegramBot.mediaGroupMap.containsKey(mediaGroupId)) {
+            Map<Channel, List<Message>> firstMessageMap = new HashMap<>();
+            List<Message> firstMessage = new ArrayList<>();
+            firstMessage.add(channelPost);
+            firstMessageMap.put(channel, firstMessage);
+            TelegramBot.mediaGroupMap.put(mediaGroupId, firstMessageMap);
+        }
+        else {
+            Map<Channel, List<Message>> messageMap = TelegramBot.mediaGroupMap.get(mediaGroupId);
+            if (messageMap.containsKey(channel)) {
+                messageMap.get(channel).add(channelPost);
+            }
+            else {
+                List<Message> messageList = new ArrayList<>();
+                messageList.add(channelPost);
+                messageMap.put(channel, messageList);
+            }
+        }
+
+        if (TelegramBot.mediaGroupMap.size() > INITIAL_LIMIT) {
+            Channel targetChanel = TelegramBot.mediaGroupMap.values().iterator().next().keySet().iterator().next();
+            List<WorkingGroup> listGroup = targetChanel.getWorkingGroups();
+            List<Hashtag> hashtagList = targetChanel.getHashtags();
+            String targetKey = Collections.max(TelegramBot.mediaGroupMap.entrySet(), Map.Entry.comparingByValue(
+                    Comparator.comparingInt(m -> m.values().stream().mapToInt(List::size).sum())
+            )).getKey();
+            mediaGroup = botUtilsService.getMediaGroup(TelegramBot.mediaGroupMap.get(
+                    targetKey).values().stream().flatMap(
+                    List::stream).collect(Collectors.toList()));
+            TelegramBot.mediaGroupMap.remove(targetKey);
+            sendMediaGroupToWorkingGroups(mediaGroup, listGroup, hashtagList);
+        }
+    }
+
+    private void sendMediaGroupToWorkingGroups(
+            SendMediaGroup mediaGroup, List<WorkingGroup> listGroup, List<Hashtag> hashtagList
+    ) {
+        for (WorkingGroup group : listGroup) {
+            Long groupId = group.getChannelId();
+            if (mediaGroup != null && botUtilsService.captionMediaGroupValidator(
+                    mediaGroup.getMedias().get(0).getCaption(),
+                    group,
+                    hashtagList))
+            {
+                try {
+                    mediaGroup.setChatId(groupId);
+                    execute(mediaGroup);
+                } catch (TelegramApiException e) {
+                    log.error(ERROR_TEXT + e.getMessage());
+                }
+            }
+        }
     }
 
     private void sentBotCommand() {
@@ -380,18 +373,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             log.error(ERROR_TEXT + e.getMessage());
         }
-    }
-
-    private ReplyKeyboardMarkup setBotKeyboardRow() {
-        ReplyKeyboardMarkup markup = new ReplyKeyboardMarkup();
-        List<KeyboardRow> rowList = new ArrayList<>();
-        KeyboardRow row = new KeyboardRow();
-        row.add(START.name());
-        row.add(HELP.name());
-        row.add(MY_WORKING_GROUPS.name());
-        rowList.add(row);
-        markup.setKeyboard(rowList);
-        return markup;
     }
 
     private <T extends BotApiMethodMessage> void executeMessage(T message) {
@@ -411,44 +392,9 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     private void startCommandReceived(long chatId) {
         SendMessage message = new SendMessage(String.valueOf(chatId), "Hi loh!");
-        message.setReplyMarkup(setBotKeyboardRow());
+        message.setReplyMarkup(botKeyboardRowService.setBotKeyboardRow());
         message.enableMarkdown(true);
         executeMessage(message);
     }
 
-    private boolean captionValidator(Message channelPost, WorkingGroup group, List<Hashtag> hashtagList) {
-        List<String> listHashtags =
-                hashtagDAO.getHashtagsByWorkingGroup(group).stream()
-                        .filter(hashtagList::contains)
-                        .map(Hashtag::getHashtagName)
-                        .toList();
-
-        return (!channelPost.hasEntities()
-                || channelPost.getEntities().stream()
-                .noneMatch(e -> listHashtags.contains(e.getText())))
-                && (channelPost.getCaptionEntities() == null
-                || channelPost.getCaptionEntities().stream()
-                .noneMatch(e -> listHashtags.contains(e.getText())));
-    }
-    private boolean captionMediaGroupValidator(String caption, WorkingGroup group, List<Hashtag> hashtagList) {
-        List<String> listHashtags =
-                hashtagDAO.getHashtagsByWorkingGroup(group).stream()
-                        .filter(hashtagList::contains)
-                        .map(Hashtag::getHashtagName)
-                        .toList();
-
-        return (caption == null
-                || listHashtags.stream()
-                .noneMatch(caption::contains));
-    }
-
-    //TODO дуже важна штука кст
-    private void deleteMessage(Integer chatId, Integer messageId) {
-        DeleteMessage deleteMessage = new DeleteMessage(chatId.toString(), messageId);
-        try {
-            execute(deleteMessage);
-        } catch (TelegramApiException e) {
-            log.error(ERROR_TEXT + e);
-        }
-    }
 }
