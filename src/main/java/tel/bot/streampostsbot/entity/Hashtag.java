@@ -30,5 +30,4 @@ public class Hashtag {
     @ManyToOne
     @JoinColumn(name = "working_group_id")
     private WorkingGroup workingGroup;
-
 }

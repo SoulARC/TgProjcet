@@ -9,4 +9,5 @@ import java.util.List;
 public interface HashtagDAO extends JpaRepository<Hashtag, Long> {
     List<Hashtag> getHashtagsByWorkingGroup(WorkingGroup workingGroup);
     Hashtag getHashtagsById(Long id);
+    void deleteAllByWorkingGroup(WorkingGroup workingGroup);
 }
