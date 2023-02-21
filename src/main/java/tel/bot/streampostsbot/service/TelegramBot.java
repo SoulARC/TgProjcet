@@ -331,20 +331,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    private boolean captionMediaGroupValidator(
-            String caption, WorkingGroup group, List<Hashtag> hashtagList
-    ) {
-        List<String> listHashtags =
-                hashtagDAO.getHashtagsByWorkingGroup(group).stream()
-                        .filter(hashtagList::contains)
-                        .map(Hashtag::getHashtagName)
-                        .toList();
-
-        return (caption == null
-                || listHashtags.stream()
-                .noneMatch(caption::contains));
-    }
-
     private SendMediaGroup sendMediaGroup(List<Message> mediaGroupList) {
         SendMediaGroup mediaGroup = new SendMediaGroup();
         List<InputMedia> inputMedias = new ArrayList<>();
@@ -430,9 +416,9 @@ public class TelegramBot extends TelegramLongPollingBot {
         executeMessage(message);
     }
 
-    private boolean captionValidator(Message channelPost, WorkingGroup workingGroup, List<Hashtag> hashtagList) {
+    private boolean captionValidator(Message channelPost, WorkingGroup group, List<Hashtag> hashtagList) {
         List<String> listHashtags =
-                hashtagDAO.getHashtagsByWorkingGroup(workingGroup).stream()
+                hashtagDAO.getHashtagsByWorkingGroup(group).stream()
                         .filter(hashtagList::contains)
                         .map(Hashtag::getHashtagName)
                         .toList();
@@ -443,6 +429,17 @@ public class TelegramBot extends TelegramLongPollingBot {
                 && (channelPost.getCaptionEntities() == null
                 || channelPost.getCaptionEntities().stream()
                 .noneMatch(e -> listHashtags.contains(e.getText())));
+    }
+    private boolean captionMediaGroupValidator(String caption, WorkingGroup group, List<Hashtag> hashtagList) {
+        List<String> listHashtags =
+                hashtagDAO.getHashtagsByWorkingGroup(group).stream()
+                        .filter(hashtagList::contains)
+                        .map(Hashtag::getHashtagName)
+                        .toList();
+
+        return (caption == null
+                || listHashtags.stream()
+                .noneMatch(caption::contains));
     }
 
     //TODO дуже важна штука кст
