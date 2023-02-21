@@ -17,7 +17,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -27,8 +26,8 @@ import java.util.List;
 @AllArgsConstructor
 @EqualsAndHashCode
 @Entity
-@Table(name = "working_groups")
-public class WorkingGroup {
+@Table(name = "main_channels")
+public class MainChannel {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -44,7 +43,7 @@ public class WorkingGroup {
     @PreRemove
     private void removeChannelsFromGroup(){
         for (Channel c: channels) {
-            c.getWorkingGroups().remove(this);
+            c.getMainChannels().remove(this);
         }
     }
 }

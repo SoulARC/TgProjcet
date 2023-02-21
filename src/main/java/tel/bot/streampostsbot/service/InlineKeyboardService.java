@@ -4,10 +4,10 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import tel.bot.streampostsbot.entity.AppUser;
 import tel.bot.streampostsbot.entity.Channel;
 import tel.bot.streampostsbot.entity.Hashtag;
-import tel.bot.streampostsbot.entity.WorkingGroup;
+import tel.bot.streampostsbot.entity.MainChannel;
 
 public interface InlineKeyboardService {
-    SendMessage inlineKeyboardChannelsList(Long chatId, WorkingGroup workingGroup);
+    SendMessage inlineKeyboardChannelsList(Long chatId, MainChannel mainChannel);
 
     SendMessage inlineKeyboardChannel(Long chatId, Channel channel);
 

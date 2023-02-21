@@ -1,4 +1,4 @@
-FROM maven:3.6.3-openjdk-17 AS MAVEN_BUILD
+FROM openjdk:17-jdk AS MAVEN_BUILD
 
 COPY ./ ./
 

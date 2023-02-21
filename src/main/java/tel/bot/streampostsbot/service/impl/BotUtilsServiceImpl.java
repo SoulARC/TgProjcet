@@ -9,7 +9,7 @@ import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto;
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaVideo;
 import tel.bot.streampostsbot.dao.HashtagDAO;
 import tel.bot.streampostsbot.entity.Hashtag;
-import tel.bot.streampostsbot.entity.WorkingGroup;
+import tel.bot.streampostsbot.entity.MainChannel;
 import tel.bot.streampostsbot.service.BotUtilsService;
 
 import java.util.ArrayList;
@@ -24,9 +24,9 @@ public class BotUtilsServiceImpl implements BotUtilsService {
     }
 
     @Override
-    public boolean captionValidator(Message channelPost, WorkingGroup group, List<Hashtag> hashtagList) {
+    public boolean captionValidator(Message channelPost, MainChannel group, List<Hashtag> hashtagList) {
         List<String> listHashtags =
-                hashtagDAO.getHashtagsByWorkingGroup(group).stream()
+                hashtagDAO.getHashtagsByMainChannel(group).stream()
                         .filter(hashtagList::contains)
                         .map(Hashtag::getHashtagName)
                         .toList();
@@ -39,9 +39,9 @@ public class BotUtilsServiceImpl implements BotUtilsService {
                 .noneMatch(e -> listHashtags.contains(e.getText())));
     }
     @Override
-    public boolean captionMediaGroupValidator(String caption, WorkingGroup group, List<Hashtag> hashtagList) {
+    public boolean captionMediaGroupValidator(String caption, MainChannel group, List<Hashtag> hashtagList) {
         List<String> listHashtags =
-                hashtagDAO.getHashtagsByWorkingGroup(group).stream()
+                hashtagDAO.getHashtagsByMainChannel(group).stream()
                         .filter(hashtagList::contains)
                         .map(Hashtag::getHashtagName)
                         .toList();

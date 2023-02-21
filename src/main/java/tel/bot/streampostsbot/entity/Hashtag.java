@@ -28,6 +28,6 @@ public class Hashtag {
     private Long id;
     private String hashtagName;
     @ManyToOne
-    @JoinColumn(name = "working_group_id")
-    private WorkingGroup workingGroup;
+    @JoinColumn(name = "main_channel_id")
+    private MainChannel mainChannel;
 }

@@ -6,11 +6,11 @@ import org.telegram.telegrambots.meta.api.objects.User;
 import tel.bot.streampostsbot.dao.AppUserDAO;
 import tel.bot.streampostsbot.dao.ChannelDAO;
 import tel.bot.streampostsbot.dao.HashtagDAO;
-import tel.bot.streampostsbot.dao.WorkingGroupDAO;
+import tel.bot.streampostsbot.dao.MainChannelDAO;
 import tel.bot.streampostsbot.entity.AppUser;
 import tel.bot.streampostsbot.entity.Channel;
 import tel.bot.streampostsbot.entity.Hashtag;
-import tel.bot.streampostsbot.entity.WorkingGroup;
+import tel.bot.streampostsbot.entity.MainChannel;
 import tel.bot.streampostsbot.service.BotManagerService;
 
 import java.util.List;
@@ -21,18 +21,18 @@ public class BotManagerServiceImpl implements BotManagerService {
     private final AppUserDAO appUserDAO;
     private final ChannelDAO channelDAO;
     private final HashtagDAO hashtagDAO;
-    private final WorkingGroupDAO workingGroupDAO;
+    private final MainChannelDAO mMainChannelDAO;
 
     public BotManagerServiceImpl(
             AppUserDAO appUserDAO,
             ChannelDAO channelDAO,
             HashtagDAO hashtagDAO,
-            WorkingGroupDAO workingGroupDAO
+            MainChannelDAO mainChannelDAO
     ) {
         this.appUserDAO = appUserDAO;
         this.channelDAO = channelDAO;
         this.hashtagDAO = hashtagDAO;
-        this.workingGroupDAO = workingGroupDAO;
+        this.mMainChannelDAO = mainChannelDAO;
     }
 
     @Override
@@ -53,19 +53,19 @@ public class BotManagerServiceImpl implements BotManagerService {
     }
     //TODO Без норм квері працювать не буде
     @Override
-    public String removeGroup(AppUser appUser, WorkingGroup workingGroup) {
-        appUser.getWorkingGroups().remove(workingGroup);
+    public String removeGroup(AppUser appUser, MainChannel mainChannel) {
+        appUser.getMMainChannels().remove(mainChannel);
         appUserDAO.save(appUser);
-        workingGroupDAO.delete(workingGroup);
-        return String.format("\"%s\" group has been deleted", workingGroup.getNameChannel());
+        mMainChannelDAO.delete(mainChannel);
+        return String.format("\"%s\" group has been deleted", mainChannel.getNameChannel());
     }
     //TODO А це буде але так собі
     @Override
-    public String removeChannel(Channel channel, WorkingGroup workingGroup) {
-        WorkingGroup oldWorkingGroup = channel.getWorkingGroups().get(0);
-        workingGroup.getChannels().remove(channel);
-        workingGroupDAO.save(workingGroup);
-        channel.getWorkingGroups().remove(oldWorkingGroup);
+    public String removeChannel(Channel channel, MainChannel mainChannel) {
+        MainChannel oldMainChahnnel = channel.getMainChannels().get(0);
+        mainChannel.getChannels().remove(channel);
+        mMainChannelDAO.save(mainChannel);
+        channel.getMainChannels().remove(oldMainChahnnel);
         channelDAO.save(channel);
         return String.format("\"%s\" channel has been deleted", channel.getChannelName());
     }
@@ -78,41 +78,41 @@ public class BotManagerServiceImpl implements BotManagerService {
         return String.format("Hashtag %s has ben deleted", hashtag.getHashtagName());
     }
     @Override
-    public void addWorkingGroup(String title, Long channelId, AppUser appUser, List<WorkingGroup> listGroup) {
-        WorkingGroup newGroup = WorkingGroup.builder()
+    public void addWorkingGroup(String title, Long channelId, AppUser appUser, List<MainChannel> listGroup) {
+        MainChannel newGroup = MainChannel.builder()
                 .channelId(channelId)
                 .nameChannel(title)
                 .appUser(appUser)
                 .build();
-        workingGroupDAO.save(newGroup);
+        mMainChannelDAO.save(newGroup);
         listGroup.add(newGroup);
-        appUser.setWorkingGroups(listGroup);
+        appUser.setMMainChannels(listGroup);
         appUserDAO.save(appUser);
     }
     @Override
-    public void addChannel(String title, Long channelId, WorkingGroup workingGroup, List<Channel> listChanel) {
+    public void addChannel(String title, Long channelId, MainChannel mainChannel, List<Channel> listChanel) {
         Channel channel = channelDAO.findChannelByChannelId(channelId);
         if (Optional.ofNullable(channel).isPresent()) {
-            channel.getWorkingGroups().add(workingGroup);
+            channel.getMainChannels().add(mainChannel);
         }
         else {
             channel = Channel.builder()
                     .channelId(channelId)
                     .channelName(title)
-                    .workingGroups(List.of(workingGroup))
+                    .mainChannels(List.of(mainChannel))
                     .build();
         }
         channelDAO.save(channel);
         listChanel.add(channel);
-        workingGroup.setChannels(listChanel);
-        workingGroupDAO.save(workingGroup);
+        mainChannel.setChannels(listChanel);
+        mMainChannelDAO.save(mainChannel);
     }
 
     @Override
-    public String addHashtag(String messageText, WorkingGroup workingGroup, Channel channel) {
+    public String addHashtag(String messageText, MainChannel mainChannel, Channel channel) {
         Hashtag newHashtag = Hashtag.builder()
                 .hashtagName(messageText)
-                .workingGroup(workingGroup)
+                .mainChannel(mainChannel)
                 .build();
         hashtagDAO.save(newHashtag);
         channel.getHashtags().add(newHashtag);

@@ -37,14 +37,13 @@ public class AppUser {
     //TODO Треба фіксанути на LAZY, колись..
     @EqualsAndHashCode.Exclude
     @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    @JoinTable(name = "app_users_working_groups",
+    @JoinTable(name = "app_users_main_channels",
             joinColumns = @JoinColumn(name = "app_user_id"),
-            inverseJoinColumns = @JoinColumn(name = "working_group_id"))
-    private List<WorkingGroup> workingGroups;
+            inverseJoinColumns = @JoinColumn(name = "main_channel_id"))
+    private List<MainChannel> mMainChannels;
     @CreationTimestamp
     private LocalDateTime firstLoginDate;
     private String firstName;
     private String lastName;
     private String username;
 }
-//TODO нали в опшинал.  підправити ентиті

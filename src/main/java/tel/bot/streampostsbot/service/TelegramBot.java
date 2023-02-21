@@ -24,7 +24,6 @@ import org.telegram.telegrambots.meta.api.methods.botapimethods.BotApiMethodMess
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
@@ -34,11 +33,11 @@ import tel.bot.streampostsbot.config.BotConfig;
 import tel.bot.streampostsbot.dao.AppUserDAO;
 import tel.bot.streampostsbot.dao.ChannelDAO;
 import tel.bot.streampostsbot.dao.HashtagDAO;
-import tel.bot.streampostsbot.dao.WorkingGroupDAO;
+import tel.bot.streampostsbot.dao.MainChannelDAO;
 import tel.bot.streampostsbot.entity.AppUser;
 import tel.bot.streampostsbot.entity.Channel;
 import tel.bot.streampostsbot.entity.Hashtag;
-import tel.bot.streampostsbot.entity.WorkingGroup;
+import tel.bot.streampostsbot.entity.MainChannel;
 import tel.bot.streampostsbot.service.impl.HelpRequestImpl;
 
 import java.util.ArrayList;
@@ -64,7 +63,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     private final BotConfig config;
     private final AppUserDAO appUserDAO;
     private final ChannelDAO channelDAO;
-    private final WorkingGroupDAO workingGroupDAO;
+    private final MainChannelDAO mainChannelDAO;
     private final HashtagDAO hashtagDAO;
     private final HelpRequestImpl helpRequest;
     private final InlineKeyboardService keyboardService;
@@ -77,7 +76,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     public TelegramBot(
             BotConfig config, AppUserDAO appUserDAO,
-            ChannelDAO channelDAO, WorkingGroupDAO workingGroupDAO,
+            ChannelDAO channelDAO, MainChannelDAO mainChannelDAO,
             HashtagDAO hashtagDAO, HelpRequestImpl helpRequest,
             InlineKeyboardService inlineKeyboardService,
             BotManagerService botManagerService,
@@ -86,7 +85,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     ) {
         this.appUserDAO = appUserDAO;
         this.channelDAO = channelDAO;
-        this.workingGroupDAO = workingGroupDAO;
+        this.mainChannelDAO = mainChannelDAO;
         this.hashtagDAO = hashtagDAO;
         this.helpRequest = helpRequest;
         this.config = config;
@@ -127,13 +126,13 @@ public class TelegramBot extends TelegramLongPollingBot {
             else if (FLAG_ADD_HASHTAG && messageText.matches(HASHTAG)) {
                 FLAG_ADD_HASHTAG = false;
                 Channel channel = channelDAO.findChannelById(channelId);
-                WorkingGroup workingGroup = workingGroupDAO.findWorkingGroupById(workingGroupId);
-                List<Hashtag> hashtagList = hashtagDAO.getHashtagsByWorkingGroup(workingGroup);
+                MainChannel mainChannel = mainChannelDAO.findMainChannelById(workingGroupId);
+                List<Hashtag> hashtagList = hashtagDAO.getHashtagsByMainChannel(mainChannel);
                 if (botUtilsService.hashtagIsPresent(messageText, hashtagList)) {
                     prepareAndSendMessage(chatId, "This hashtag already exists");
                 }
                 else {
-                    prepareAndSendMessage(chatId, botManagerService.addHashtag(messageText, workingGroup, channel));
+                    prepareAndSendMessage(chatId, botManagerService.addHashtag(messageText, mainChannel, channel));
                 }
             }
             else {
@@ -156,8 +155,8 @@ public class TelegramBot extends TelegramLongPollingBot {
                 );
             }
             else if (callbackData.contains(DELETE_GROUP.toString())) {
-//                WorkingGroup workingGroup = workingGroupDAO.findWorkingGroupById(workingGroupId);
-//                prepareAndSendMessage(chatCallbackId, botManagerService.removeGroup(appUser, workingGroup));
+//                MainChannel mainChannel = mainChannelDAO.findMainChannelById(workingGroupId);
+//                prepareAndSendMessage(chatCallbackId, botManagerService.removeChannel(, mainChannel));
                 prepareAndSendMessage(chatCallbackId, NOT_IMPLEMENTED);
             }
             else if (ADD_WORKING_GROUP.equals(callbackData)) {
@@ -171,8 +170,8 @@ public class TelegramBot extends TelegramLongPollingBot {
             }
             else if (REMOVE_CHANNEL.equals(callbackData)) {
                 Channel channel = channelDAO.findChannelById(channelId);
-                WorkingGroup workingGroup = workingGroupDAO.findWorkingGroupById(workingGroupId);
-                prepareAndSendMessage(chatCallbackId, botManagerService.removeChannel(channel, workingGroup));
+                MainChannel mainChannel = mainChannelDAO.findMainChannelById(workingGroupId);
+                prepareAndSendMessage(chatCallbackId, botManagerService.removeChannel(channel, mainChannel));
             }
             else if (ADD_HASHTAG.equals(callbackData)) {
                 FLAG_ADD_HASHTAG = true;
@@ -183,14 +182,13 @@ public class TelegramBot extends TelegramLongPollingBot {
                 Hashtag hashtag = hashtagDAO.getHashtagsById(hashtagId);
                 Channel channel = channelDAO.findChannelById(channelId);
                 prepareAndSendMessage(chatCallbackId, botManagerService.removeHashtag(hashtag, channel));
-                WorkingGroup workingGroup = workingGroupDAO.findWorkingGroupById(workingGroupId);
-                executeMessage(keyboardService.inlineKeyboardChannelsList(chatCallbackId, workingGroup));
+                MainChannel mainChannel = mainChannelDAO.findMainChannelById(workingGroupId);
+                executeMessage(keyboardService.inlineKeyboardChannelsList(chatCallbackId, mainChannel));
             }
             //TODO Хуйня яка додає канали і вілправляє список каналів
-
             else if (BACK_TO_CHANNELS_LIST.equals(callbackData)) {
-                WorkingGroup workingGroup = workingGroupDAO.findWorkingGroupById(workingGroupId);
-                executeMessage(keyboardService.inlineKeyboardChannelsList(chatCallbackId, workingGroup));
+                MainChannel mainChannel = mainChannelDAO.findMainChannelById(workingGroupId);
+                executeMessage(keyboardService.inlineKeyboardChannelsList(chatCallbackId, mainChannel));
             }
             else if (BACK_TO_GROUPS_LIST.equals(callbackData)) {
                 executeMessage(keyboardService.inlineKeyboardMyGroup(chatCallbackId, appUser));
@@ -198,8 +196,8 @@ public class TelegramBot extends TelegramLongPollingBot {
             //TODO Хуйня яка відправляє кнопочки
             else if (callbackData.contains(FLAG_GROUP_LIST.toString())) {
                 workingGroupId = Long.valueOf(callbackData.replaceAll(FLAG_GROUP_LIST.toString(), ""));
-                WorkingGroup workingGroup = workingGroupDAO.findWorkingGroupById(workingGroupId);
-                executeMessage(keyboardService.inlineKeyboardChannelsList(chatCallbackId, workingGroup));
+                MainChannel mainChannel = mainChannelDAO.findMainChannelById(workingGroupId);
+                executeMessage(keyboardService.inlineKeyboardChannelsList(chatCallbackId, mainChannel));
             }
             else if (callbackData.contains(FLAG_CHANNEL_LIST.toString())) {
                 channelId = Long.valueOf(callbackData.replaceAll(FLAG_CHANNEL_LIST.toString(), ""));
@@ -220,9 +218,9 @@ public class TelegramBot extends TelegramLongPollingBot {
             String channelTitle = update.getMessage().getForwardFromChat().getTitle();
             Long channelId = update.getMessage().getForwardFromChat().getId();
             AppUser appUser = botManagerService.findOrSaveAppUser(update);
-            List<WorkingGroup> listGroup = appUser.getWorkingGroups();
+            List<MainChannel> listGroup = appUser.getMMainChannels();
 
-            for (WorkingGroup group : listGroup) {
+            for (MainChannel group : listGroup) {
                 if (group.getChannelId().equals(channelId)) {
                     executeMessage(new SendMessage(update.getMessage().getChatId().toString()
                             , "This channel has already been added"));
@@ -240,8 +238,8 @@ public class TelegramBot extends TelegramLongPollingBot {
         else if (update.hasMessage() && update.getMessage().getForwardFromChat() != null && FLAG_ADD_CHANNEL) {
             String channelTitle = update.getMessage().getForwardFromChat().getTitle();
             Long channelId = update.getMessage().getForwardFromChat().getId();
-            WorkingGroup workingGroup = workingGroupDAO.findWorkingGroupById(workingGroupId);
-            List<Channel> listChannel = workingGroup.getChannels();
+            MainChannel mainChannel = mainChannelDAO.findMainChannelById(workingGroupId);
+            List<Channel> listChannel = mainChannel.getChannels();
             for (Channel group : listChannel) {
                 if (group.getChannelId().equals(channelId)) {
                     executeMessage(new SendMessage(update.getMessage().getChatId().toString()
@@ -254,7 +252,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                     "Channel added title: " + channelTitle + " "
                             + "Channel id: " + channelId
             );
-            botManagerService.addChannel(channelTitle, channelId, workingGroup, listChannel);
+            botManagerService.addChannel(channelTitle, channelId, mainChannel, listChannel);
             FLAG_ADD_CHANNEL = false;
         }
     }
@@ -263,21 +261,21 @@ public class TelegramBot extends TelegramLongPollingBot {
         Message channelPost = update.getChannelPost();
         Channel channel = channelDAO.findChannelByChannelId(channelPost.getChatId());
         if (Optional.ofNullable(channel).isPresent()) {
-            List<WorkingGroup> listGroup = channel.getWorkingGroups();
+            List<MainChannel> listGroup = channel.getMainChannels();
             List<Hashtag> hashtagList = channel.getHashtags();
 
             if (channelPost.getMediaGroupId() != null) {
                 processMediaGroupPost(channelPost, channel);
             }
 
-            for (WorkingGroup group : listGroup) {
+            for (MainChannel group : listGroup) {
                 processChannelPostForGroup(update, channelPost, group, hashtagList);
             }
         }
     }
 
     private void processChannelPostForGroup(
-            Update update, Message channelPost, WorkingGroup group, List<Hashtag> hashtagList
+            Update update, Message channelPost, MainChannel group, List<Hashtag> hashtagList
     ) {
         Long groupId = group.getChannelId();
         if (botUtilsService.captionValidator(channelPost, group, hashtagList) &&
@@ -329,7 +327,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         if (TelegramBot.mediaGroupMap.size() > INITIAL_LIMIT) {
             Channel targetChanel = TelegramBot.mediaGroupMap.values().iterator().next().keySet().iterator().next();
-            List<WorkingGroup> listGroup = targetChanel.getWorkingGroups();
+            List<MainChannel> listGroup = targetChanel.getMainChannels();
             List<Hashtag> hashtagList = targetChanel.getHashtags();
             String targetKey = Collections.max(TelegramBot.mediaGroupMap.entrySet(), Map.Entry.comparingByValue(
                     Comparator.comparingInt(m -> m.values().stream().mapToInt(List::size).sum())
@@ -343,9 +341,9 @@ public class TelegramBot extends TelegramLongPollingBot {
     }
 
     private void sendMediaGroupToWorkingGroups(
-            SendMediaGroup mediaGroup, List<WorkingGroup> listGroup, List<Hashtag> hashtagList
+            SendMediaGroup mediaGroup, List<MainChannel> listGroup, List<Hashtag> hashtagList
     ) {
-        for (WorkingGroup group : listGroup) {
+        for (MainChannel group : listGroup) {
             Long groupId = group.getChannelId();
             if (mediaGroup != null && botUtilsService.captionMediaGroupValidator(
                     mediaGroup.getMedias().get(0).getCaption(),

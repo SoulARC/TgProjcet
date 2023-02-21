@@ -19,7 +19,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import tel.bot.streampostsbot.entity.AppUser;
 import tel.bot.streampostsbot.entity.Channel;
 import tel.bot.streampostsbot.entity.Hashtag;
-import tel.bot.streampostsbot.entity.WorkingGroup;
+import tel.bot.streampostsbot.entity.MainChannel;
 import tel.bot.streampostsbot.service.InlineKeyboardService;
 
 import java.util.ArrayList;
@@ -28,13 +28,13 @@ import java.util.List;
 @Service
 public class InlineKeyboardServiceImpl implements InlineKeyboardService {
     @Override
-    public SendMessage inlineKeyboardChannelsList(Long chatId, WorkingGroup workingGroup) {
+    public SendMessage inlineKeyboardChannelsList(Long chatId, MainChannel mainChannel) {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(chatId);
-        sendMessage.setText(workingGroup.getNameChannel()
+        sendMessage.setText(mainChannel.getNameChannel()
                 + " group");
         InlineKeyboardMarkup markupInLine = new InlineKeyboardMarkup();
-        List<Channel> listGroup = workingGroup.getChannels();
+        List<Channel> listGroup = mainChannel.getChannels();
         List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
         for (int i = 0; i < listGroup.size(); ) {
             StringBuilder strBuilder = new StringBuilder();
@@ -88,23 +88,23 @@ public class InlineKeyboardServiceImpl implements InlineKeyboardService {
     @Override
     public SendMessage inlineKeyboardMyGroup(Long chatId, AppUser appUser) {
         SendMessage sendMessage = new SendMessage();
-        List<WorkingGroup> listGroup = appUser.getWorkingGroups();
+        List<MainChannel> listGroup = appUser.getMMainChannels();
         sendMessage.setChatId(chatId);
         sendMessage.setText("My list working group");
         InlineKeyboardMarkup markupInLine = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
         for (int i = 0; i < listGroup.size(); ) {
             StringBuilder strBuilder = new StringBuilder();
-            WorkingGroup workingGroup = listGroup.get(i);
+            MainChannel mainChahnnel = listGroup.get(i);
             strBuilder.append(++i)
                     .append(") Title (")
-                    .append(workingGroup.getNameChannel())
+                    .append(mainChahnnel.getNameChannel())
                     .append(") id(")
-                    .append(workingGroup.getChannelId())
+                    .append(mainChahnnel.getChannelId())
                     .append(")");
             rowsInLine.add(inlineButtonBuilder(
                     strBuilder.toString(),
-                    FLAG_GROUP_LIST + workingGroup.getId().toString()
+                    FLAG_GROUP_LIST + mainChahnnel.getId().toString()
             ));
         }
         rowsInLine.add(inlineButtonBuilder("Add group", ADD_WORKING_GROUP.toString()));

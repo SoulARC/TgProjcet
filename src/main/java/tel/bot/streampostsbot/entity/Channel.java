@@ -7,7 +7,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.PreRemove;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -38,5 +37,5 @@ public class Channel {
     private List<Hashtag> hashtags;
     @EqualsAndHashCode.Exclude
     @ManyToMany(fetch = FetchType.EAGER)
-    private List<WorkingGroup> workingGroups;
+    private List<MainChannel> mainChannels;
 }
