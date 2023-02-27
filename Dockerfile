@@ -1,9 +1,6 @@
-FROM openjdk:17-jdk AS MAVEN_BUILD
+FROM openjdk:17-oracle
+ARG JAR_FILE=target/*.jar
 
-COPY ./ ./
+COPY ${JAR_FILE} app.jar
 
-RUN mvn clean package
-
-FROM jdk-
-
-CMD ["java", "-jar", "target/StreamPostsBot-0.0.1-SNAPSHOT.jar"]
+ENTRYPOINT ["java", "-jar", "/app.jar"]
