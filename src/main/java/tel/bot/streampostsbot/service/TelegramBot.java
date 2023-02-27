@@ -13,7 +13,7 @@ import static tel.bot.streampostsbot.service.enums.ServiceCommands.START;
 import static tel.bot.streampostsbot.service.enums.WorkGroupCommands.ADD_NEW_CHANNEL;
 import static tel.bot.streampostsbot.service.enums.WorkGroupCommands.ADD_WORKING_GROUP;
 import static tel.bot.streampostsbot.service.enums.WorkGroupCommands.BACK_TO_GROUPS_LIST;
-import static tel.bot.streampostsbot.service.enums.WorkGroupCommands.DELETE_GROUP;
+import static tel.bot.streampostsbot.service.enums.WorkGroupCommands.DELETE_MAIN_CHANNEL;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -53,7 +53,7 @@ import java.util.stream.Collectors;
 @Component
 public class TelegramBot extends TelegramLongPollingBot {
     private static final String ERROR_TEXT = "Error occurred: ";
-    private static final String HASHTAG = "^#(?=.*[^0-9])[a-zа-яёіїґ0-9]{1,29}$";
+    private static final String HASHTAG = "^#(?=.*[^0-9])[a-zа-яёіїґ0-9_]{1,29}$";
     private static final String NOT_IMPLEMENTED = "Sorry, this feature is not yet implemented :(";
     private static final int INITIAL_LIMIT = 1;
     private static final Map<String, Map<Channel, List<Message>>> mediaGroupMap = new HashMap<>();
@@ -154,9 +154,9 @@ public class TelegramBot extends TelegramLongPollingBot {
                                 "2) Forward the post from the channel"
                 );
             }
-            else if (callbackData.contains(DELETE_GROUP.toString())) {
+            else if (callbackData.contains(DELETE_MAIN_CHANNEL.toString())) {
 //                MainChannel mainChannel = mainChannelDAO.findMainChannelById(workingGroupId);
-//                prepareAndSendMessage(chatCallbackId, botManagerService.removeChannel(, mainChannel));
+//                prepareAndSendMessage(chatCallbackId, botManagerService.removeMainChannel(appUser, mainChannel));
                 prepareAndSendMessage(chatCallbackId, NOT_IMPLEMENTED);
             }
             else if (ADD_WORKING_GROUP.equals(callbackData)) {
@@ -304,7 +304,6 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     //TODO оцю хуйню доробить, в принципі працює так як однорукий шульга
     private void processMediaGroupPost(Message channelPost, Channel channel) {
-        SendMediaGroup mediaGroup;
         String mediaGroupId = channelPost.getMediaGroupId();
         if (!TelegramBot.mediaGroupMap.containsKey(mediaGroupId)) {
             Map<Channel, List<Message>> firstMessageMap = new HashMap<>();
@@ -324,20 +323,23 @@ public class TelegramBot extends TelegramLongPollingBot {
                 messageMap.put(channel, messageList);
             }
         }
-
         if (TelegramBot.mediaGroupMap.size() > INITIAL_LIMIT) {
-            Channel targetChanel = TelegramBot.mediaGroupMap.values().iterator().next().keySet().iterator().next();
-            List<MainChannel> listGroup = targetChanel.getMainChannels();
-            List<Hashtag> hashtagList = targetChanel.getHashtags();
-            String targetKey = Collections.max(TelegramBot.mediaGroupMap.entrySet(), Map.Entry.comparingByValue(
-                    Comparator.comparingInt(m -> m.values().stream().mapToInt(List::size).sum())
-            )).getKey();
-            mediaGroup = botUtilsService.getMediaGroup(TelegramBot.mediaGroupMap.get(
-                    targetKey).values().stream().flatMap(
-                    List::stream).collect(Collectors.toList()));
-            TelegramBot.mediaGroupMap.remove(targetKey);
-            sendMediaGroupToWorkingGroups(mediaGroup, listGroup, hashtagList);
+            createMediaGroup();
         }
+    }
+    private void createMediaGroup() {
+        SendMediaGroup mediaGroup;
+        Channel targetChanel = TelegramBot.mediaGroupMap.values().iterator().next().keySet().iterator().next();
+        List<MainChannel> listGroup = targetChanel.getMainChannels();
+        List<Hashtag> hashtagList = targetChanel.getHashtags();
+        String targetKey = Collections.max(TelegramBot.mediaGroupMap.entrySet(), Map.Entry.comparingByValue(
+                Comparator.comparingInt(m -> m.values().stream().mapToInt(List::size).sum())
+        )).getKey();
+        mediaGroup = botUtilsService.getMediaGroup(TelegramBot.mediaGroupMap.get(
+                targetKey).values().stream().flatMap(
+                List::stream).collect(Collectors.toList()));
+        TelegramBot.mediaGroupMap.remove(targetKey);
+        sendMediaGroupToWorkingGroups(mediaGroup, listGroup, hashtagList);
     }
 
     private void sendMediaGroupToWorkingGroups(
@@ -348,8 +350,8 @@ public class TelegramBot extends TelegramLongPollingBot {
             if (mediaGroup != null && botUtilsService.captionMediaGroupValidator(
                     mediaGroup.getMedias().get(0).getCaption(),
                     group,
-                    hashtagList))
-            {
+                    hashtagList
+            )) {
                 try {
                     mediaGroup.setChatId(groupId);
                     execute(mediaGroup);
@@ -394,5 +396,4 @@ public class TelegramBot extends TelegramLongPollingBot {
         message.enableMarkdown(true);
         executeMessage(message);
     }
-
 }

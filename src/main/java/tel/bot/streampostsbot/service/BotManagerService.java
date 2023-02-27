@@ -11,6 +11,8 @@ import java.util.List;
 public interface BotManagerService {
     AppUser findOrSaveAppUser(Update update);
 
+    String removeMainChannel(AppUser appUser, MainChannel mainChannel);
+
     String removeChannel(Channel channel, MainChannel mainChannel);
 
     String removeHashtag(Hashtag hashtag, Channel channel);
@@ -20,4 +22,5 @@ public interface BotManagerService {
     void addChannel(String title, Long channelId, MainChannel mainChannel, List<Channel> listChanel);
 
     String addHashtag(String messageText, MainChannel mainChannel, Channel channel);
+
 }

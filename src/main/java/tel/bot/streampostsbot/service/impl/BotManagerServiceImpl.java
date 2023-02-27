@@ -21,7 +21,7 @@ public class BotManagerServiceImpl implements BotManagerService {
     private final AppUserDAO appUserDAO;
     private final ChannelDAO channelDAO;
     private final HashtagDAO hashtagDAO;
-    private final MainChannelDAO mMainChannelDAO;
+    private final MainChannelDAO mainChannelDAO;
 
     public BotManagerServiceImpl(
             AppUserDAO appUserDAO,
@@ -32,7 +32,7 @@ public class BotManagerServiceImpl implements BotManagerService {
         this.appUserDAO = appUserDAO;
         this.channelDAO = channelDAO;
         this.hashtagDAO = hashtagDAO;
-        this.mMainChannelDAO = mainChannelDAO;
+        this.mainChannelDAO = mainChannelDAO;
     }
 
     @Override
@@ -53,19 +53,19 @@ public class BotManagerServiceImpl implements BotManagerService {
     }
     //TODO Без норм квері працювать не буде
     @Override
-    public String removeGroup(AppUser appUser, MainChannel mainChannel) {
+    public String removeMainChannel(AppUser appUser, MainChannel mainChannel) {
         appUser.getMMainChannels().remove(mainChannel);
         appUserDAO.save(appUser);
-        mMainChannelDAO.delete(mainChannel);
-        return String.format("\"%s\" group has been deleted", mainChannel.getNameChannel());
+        mainChannelDAO.delete(mainChannel);
+        return String.format("\"%s\" main channel has been deleted", mainChannel.getNameChannel());
     }
-    //TODO А це буде але так собі
+    //TODO фіксанути видалення хештегів
     @Override
     public String removeChannel(Channel channel, MainChannel mainChannel) {
-        MainChannel oldMainChahnnel = channel.getMainChannels().get(0);
+        MainChannel oldMainChannel = channel.getMainChannels().get(0);
         mainChannel.getChannels().remove(channel);
-        mMainChannelDAO.save(mainChannel);
-        channel.getMainChannels().remove(oldMainChahnnel);
+        mainChannelDAO.save(mainChannel);
+        channel.getMainChannels().remove(oldMainChannel);
         channelDAO.save(channel);
         return String.format("\"%s\" channel has been deleted", channel.getChannelName());
     }
@@ -84,7 +84,7 @@ public class BotManagerServiceImpl implements BotManagerService {
                 .nameChannel(title)
                 .appUser(appUser)
                 .build();
-        mMainChannelDAO.save(newGroup);
+        mainChannelDAO.save(newGroup);
         listGroup.add(newGroup);
         appUser.setMMainChannels(listGroup);
         appUserDAO.save(appUser);
@@ -105,7 +105,7 @@ public class BotManagerServiceImpl implements BotManagerService {
         channelDAO.save(channel);
         listChanel.add(channel);
         mainChannel.setChannels(listChanel);
-        mMainChannelDAO.save(mainChannel);
+        mainChannelDAO.save(mainChannel);
     }
 
     @Override

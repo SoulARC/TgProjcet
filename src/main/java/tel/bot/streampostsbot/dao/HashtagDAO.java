@@ -9,5 +9,4 @@ import java.util.List;
 public interface HashtagDAO extends JpaRepository<Hashtag, Long> {
     List<Hashtag> getHashtagsByMainChannel(MainChannel mainChannel);
     Hashtag getHashtagsById(Long id);
-    void deleteAllByMainChannel(MainChannel mainChannel);
 }

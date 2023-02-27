@@ -10,7 +10,7 @@ import static tel.bot.streampostsbot.service.enums.Flags.FLAG_HASHTAG;
 import static tel.bot.streampostsbot.service.enums.WorkGroupCommands.ADD_NEW_CHANNEL;
 import static tel.bot.streampostsbot.service.enums.WorkGroupCommands.ADD_WORKING_GROUP;
 import static tel.bot.streampostsbot.service.enums.WorkGroupCommands.BACK_TO_GROUPS_LIST;
-import static tel.bot.streampostsbot.service.enums.WorkGroupCommands.DELETE_GROUP;
+import static tel.bot.streampostsbot.service.enums.WorkGroupCommands.DELETE_MAIN_CHANNEL;
 
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -52,7 +52,7 @@ public class InlineKeyboardServiceImpl implements InlineKeyboardService {
         }
         rowsInLine.add(inlineButtonBuilder("Add new channel", ADD_NEW_CHANNEL.toString()));
         rowsInLine.add(inlineButtonBuilder("↪️Back", BACK_TO_GROUPS_LIST.toString()));
-        rowsInLine.add(inlineButtonBuilder("❌ Delete group", DELETE_GROUP.toString()));
+        rowsInLine.add(inlineButtonBuilder("❌ Delete group", DELETE_MAIN_CHANNEL.toString()));
         markupInLine.setKeyboard(rowsInLine);
         sendMessage.setReplyMarkup(markupInLine);
         return sendMessage;
@@ -95,16 +95,16 @@ public class InlineKeyboardServiceImpl implements InlineKeyboardService {
         List<List<InlineKeyboardButton>> rowsInLine = new ArrayList<>();
         for (int i = 0; i < listGroup.size(); ) {
             StringBuilder strBuilder = new StringBuilder();
-            MainChannel mainChahnnel = listGroup.get(i);
+            MainChannel mainChannel = listGroup.get(i);
             strBuilder.append(++i)
                     .append(") Title (")
-                    .append(mainChahnnel.getNameChannel())
+                    .append(mainChannel.getNameChannel())
                     .append(") id(")
-                    .append(mainChahnnel.getChannelId())
+                    .append(mainChannel.getChannelId())
                     .append(")");
             rowsInLine.add(inlineButtonBuilder(
                     strBuilder.toString(),
-                    FLAG_GROUP_LIST + mainChahnnel.getId().toString()
+                    FLAG_GROUP_LIST + mainChannel.getId().toString()
             ));
         }
         rowsInLine.add(inlineButtonBuilder("Add group", ADD_WORKING_GROUP.toString()));
